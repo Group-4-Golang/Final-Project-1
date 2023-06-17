@@ -1,0 +1,154 @@
+basePath: /api/v1
+definitions:
+  model.Message:
+    properties:
+      message:
+        example: Todo not found
+        type: string
+    type: object
+  model.Todo:
+    properties:
+      deadline:
+        example: "2022-09-15T14:30:45.0000001+07:00"
+        type: string
+      description:
+        example: Something to do in the weekend
+        type: string
+      id:
+        example: 1
+        type: integer
+      name:
+        example: Assigntment 1
+        type: string
+      status:
+        example: New
+        type: string
+    type: object
+  model.TodoRequest:
+    properties:
+      deadline:
+        example: "2022-09-15T14:30:45.0000001+07:00"
+        type: string
+      description:
+        example: Something to do in the weekend
+        type: string
+      name:
+        example: Assigntment 1
+        type: string
+      status:
+        example: New
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: This is a simple server todo server.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  title: Final Project 1 [Go + Gin Todo API]
+  version: "1.0"
+paths:
+  /todos:
+    get:
+      operationId: get-all-todos
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Todo'
+      summary: get all items in the todo list
+    post:
+      operationId: create-todo
+      parameters:
+      - description: Todo Request
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/model.TodoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Todo'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/model.Message'
+      summary: add a new item to the todo list
+  /todos/{id}:
+    delete:
+      operationId: delete-todo-by-id
+      parameters:
+      - description: todo ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Todo'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.Message'
+      summary: delete a todo item by ID
+    get:
+      operationId: get-todo-by-id
+      parameters:
+      - description: todo ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Todo'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.Message'
+      summary: get a todo item by ID
+    put:
+      operationId: update-todo-by-id
+      parameters:
+      - description: todo ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Todo Request
+        in: body
+        name: data
+        required: true
+        schema:
+          $ref: '#/definitions/model.TodoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/model.Todo'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/model.Message'
+      summary: update a todo item by ID
+swagger: "2.0"

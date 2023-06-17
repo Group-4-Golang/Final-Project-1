@@ -1,0 +1,144 @@
+package main
+
+import (
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/gin-gonic/gin"
+)
+
+type Todo struct {
+	Id          int       `json:"id"`
+	Name        string    `json:"name"`
+	Deadline    time.Time `json:"deadline"`
+	Description string    `json:"description"`
+	Status      string    `json:"status"`
+}
+
+var Todos = []Todo{
+	{
+		Id:          1,
+		Name:        "Adi",
+		Deadline:    time.Date(2021, 8, 15, 14, 30, 45, 100, time.Local),
+		Description: "Something To Do",
+		Status:      "New",
+	},
+	{
+		Id:          2,
+		Name:        "Budi",
+		Deadline:    time.Date(2021, 8, 25, 14, 30, 45, 100, time.Local),
+		Description: "Something To Do now",
+		Status:      "New",
+	},
+}
+
+func main() {
+	r := gin.Default()
+	v1 := r.Group("/v1")
+
+	v1.GET("/todos", GetTodosHandler)
+	v1.GET("/todos/:id", GetTodoHandler)
+	v1.POST("/todos", CreateTodoHandler)
+	v1.PUT("/todos/:id", UpdateTodoHandler)
+	v1.DELETE("/todos/:id", DeleteTodoHandler)
+	r.Run()
+}
+
+func GetTodosHandler(ctx *gin.Context) {
+	if Todos == nil {
+		ctx.JSON(http.StatusOK, gin.H{
+			"Data": "There is nothing to do",
+		})
+	} else {
+		ctx.JSON(http.StatusOK, gin.H{
+			"Data": Todos,
+		})
+	}
+}
+
+func GetTodoHandler(ctx *gin.Context) {
+	idString := ctx.Param("id")
+	id, _ := strconv.Atoi(idString)
+
+	for _, todo := range Todos {
+		if todo.Id == id {
+			ctx.JSON(http.StatusOK, gin.H{
+				"Data": todo,
+			})
+			return
+		}
+	}
+
+	ctx.JSON(http.StatusBadRequest, "Todo not found")
+
+}
+
+func CreateTodoHandler(ctx *gin.Context) {
+	var todo Todo
+	err := ctx.ShouldBindJSON(&todo)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, err.Error())
+		return
+	}
+
+	Todos = append(Todos, todo)
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"Data": todo,
+	})
+
+}
+
+func UpdateTodoHandler(ctx *gin.Context) {
+
+	idString := ctx.Param("id")
+	id, _ := strconv.Atoi(idString)
+
+	var update Todo
+	err := ctx.ShouldBindJSON(&update)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, err.Error())
+		return
+	}
+
+	for index, todo := range Todos {
+		if todo.Id == id {
+
+			todo.Name = update.Name
+			todo.Deadline = update.Deadline
+			todo.Description = update.Description
+			todo.Status = update.Status
+			Todos[index] = todo
+
+			ctx.JSON(http.StatusOK, gin.H{
+				"Updated Data": todo,
+			})
+			return
+		}
+	}
+
+	ctx.JSON(http.StatusBadRequest, "Todo not found")
+
+}
+
+func DeleteTodoHandler(ctx *gin.Context) {
+
+	idString := ctx.Param("id")
+	id, _ := strconv.Atoi(idString)
+
+	for index, todo := range Todos {
+		if todo.Id == id {
+
+			Todos = append(Todos[:index], Todos[index+1:]...)
+
+			ctx.JSON(http.StatusOK, gin.H{
+				"Deleted Data": todo,
+			})
+			return
+		}
+	}
+
+	ctx.JSON(http.StatusBadRequest, "Todo not found")
+
+}
