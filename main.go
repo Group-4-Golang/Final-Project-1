@@ -1,13 +1,13 @@
 package main
 
 import (
+	"finalproject1/configs"
+	"finalproject1/controller"
 	_ "finalproject1/docs"
-	"finalproject1/router"
-
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
+	"sync"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 // @title Final Project 1 [Go + Gin Todo API]
@@ -25,10 +25,22 @@ import (
 // @BasePath /api/v1
 // @query.collection.format multi
 func main() {
-	r := gin.Default()
-	v1 := r.Group("/api/v1")
+	godotenv.Load()
 
-	router.TodorRoutes(v1)
-	v1.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		HttpMainHandler()
+		defer wg.Done()
+	}()
+	wg.Wait()
+}
+
+func HttpMainHandler() {
+	r := gin.Default()
+	db := configs.NewConnection(configs.BaseConfig()).Database
+
+	controller.InitHtttpRoute(r, db)
+
 	r.Run()
 }

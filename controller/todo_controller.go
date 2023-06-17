@@ -4,45 +4,24 @@ import (
 	"finalproject1/model"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
 )
-
-var Todos = []model.Todo{
-	{
-		Id:          1,
-		Name:        "Assignment 1",
-		Deadline:    time.Date(2021, 8, 15, 14, 30, 45, 100, time.Local),
-		Description: "Something To Do",
-		Status:      "New",
-	},
-	{
-		Id:          2,
-		Name:        "Assignment 2",
-		Deadline:    time.Date(2021, 8, 25, 14, 30, 45, 100, time.Local),
-		Description: "Something To Do now",
-		Status:      "New",
-	},
-}
-
-var maxId = 2
 
 // @Summary get all items in the todo list
 // @ID get-all-todos
 // @Produce json
 // @Success 200 {object} model.Todo
 // @Router /todos [get]
-func GetTodosHandler(ctx *gin.Context) {
-	if Todos == nil {
-		ctx.JSON(http.StatusOK, gin.H{
-			"Data": "There is nothing to do",
-		})
-	} else {
-		ctx.JSON(http.StatusOK, gin.H{
-			"Data": Todos,
-		})
+func (h *handler) GetTodosHandler(ctx *gin.Context) {
+	var todos []model.Todo
+
+	if result := h.DB.Find(&todos); result.Error != nil {
+		ctx.AbortWithError(http.StatusNotFound, result.Error)
+		return
 	}
+
+	ctx.JSON(http.StatusOK, &todos)
 }
 
 // @Summary get a todo item by ID
@@ -52,21 +31,18 @@ func GetTodosHandler(ctx *gin.Context) {
 // @Success 200 {object} model.Todo
 // @Failure 404 {object} model.Message
 // @Router /todos/{id} [get]
-func GetTodoHandler(ctx *gin.Context) {
+func (h *handler) GetTodoHandler(ctx *gin.Context) {
 	idString := ctx.Param("id")
 	id, _ := strconv.Atoi(idString)
 
-	for _, todo := range Todos {
-		if todo.Id == id {
-			ctx.JSON(http.StatusOK, gin.H{
-				"Data": todo,
-			})
-			return
-		}
+	var todo model.Todo
+
+	if result := h.DB.First(&todo, id); result.Error != nil {
+		ctx.AbortWithError(http.StatusNotFound, result.Error)
+		return
 	}
 
-	r := model.Message{Message: "Todo not found"}
-	ctx.JSON(http.StatusNotFound, r)
+	ctx.JSON(http.StatusOK, &todo)
 
 }
 
@@ -77,25 +53,26 @@ func GetTodoHandler(ctx *gin.Context) {
 // @Success 200 {object} model.Todo
 // @Failure 400 {object} model.Message
 // @Router /todos [post]
-func CreateTodoHandler(ctx *gin.Context) {
-	var createData model.TodoRequest
-	var todo model.Todo
-	err := ctx.ShouldBindJSON(&createData)
-	if err != nil {
-		r := model.Message{Message: "an error occurred while creating todo"}
-		ctx.JSON(http.StatusBadRequest, r)
+func (h *handler) CreateTodoHandler(ctx *gin.Context) {
+	input := model.TodoRequest{}
+	if err := ctx.BindJSON(&input); err != nil {
+		ctx.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
-	maxId++
+	var todos model.Todo
 
-	todo = convertRequest(maxId, createData)
-	Todos = append(Todos, todo)
+	todos.Name = input.Name
+	todos.Deadline = input.Deadline
+	todos.Description = input.Description
+	todos.Status = input.Status
 
-	ctx.JSON(http.StatusOK, gin.H{
-		"Data": todo,
-	})
+	if result := h.DB.Create(&todos); result.Error != nil {
+		ctx.AbortWithError(http.StatusNotFound, result.Error)
+		return
+	}
 
+	ctx.JSON(http.StatusCreated, &todos)
 }
 
 // @Summary update a todo item by ID
@@ -106,36 +83,32 @@ func CreateTodoHandler(ctx *gin.Context) {
 // @Success 200 {object} model.Todo
 // @Failure 404 {object} model.Message
 // @Router /todos/{id} [put]
-func UpdateTodoHandler(ctx *gin.Context) {
+func (h *handler) UpdateTodoHandler(ctx *gin.Context) {
 
 	idString := ctx.Param("id")
 	id, _ := strconv.Atoi(idString)
 
-	var updateData model.TodoRequest
-	err := ctx.ShouldBindJSON(&updateData)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, err.Error())
+	input := model.TodoRequest{}
+	if err := ctx.BindJSON(&input); err != nil {
+		ctx.AbortWithError(http.StatusBadRequest, err)
 		return
 	}
 
-	for index, todo := range Todos {
-		if todo.Id == id {
+	var todos model.Todo
 
-			todo.Name = updateData.Name
-			todo.Deadline = updateData.Deadline
-			todo.Description = updateData.Description
-			todo.Status = updateData.Status
-			Todos[index] = todo
-
-			ctx.JSON(http.StatusOK, gin.H{
-				"Updated Data": todo,
-			})
-			return
-		}
+	if result := h.DB.First(&todos, id); result.Error != nil {
+		ctx.AbortWithError(http.StatusNotFound, result.Error)
+		return
 	}
 
-	r := model.Message{Message: "Todo not found"}
-	ctx.JSON(http.StatusNotFound, r)
+	todos.Name = input.Name
+	todos.Deadline = input.Deadline
+	todos.Description = input.Description
+	todos.Status = input.Status
+
+	h.DB.Save(&todos)
+
+	ctx.JSON(http.StatusCreated, &todos)
 
 }
 
@@ -146,34 +119,19 @@ func UpdateTodoHandler(ctx *gin.Context) {
 // @Success 200 {object} model.Todo
 // @Failure 404 {object} model.Message
 // @Router /todos/{id} [delete]
-func DeleteTodoHandler(ctx *gin.Context) {
+func (h *handler) DeleteTodoHandler(ctx *gin.Context) {
 
 	idString := ctx.Param("id")
 	id, _ := strconv.Atoi(idString)
 
-	for index, todo := range Todos {
-		if todo.Id == id {
+	var todo model.Todo
 
-			Todos = append(Todos[:index], Todos[index+1:]...)
-
-			ctx.JSON(http.StatusOK, gin.H{
-				"Deleted Data": todo,
-			})
-			return
-		}
+	if result := h.DB.First(&todo, id); result.Error != nil {
+		ctx.AbortWithError(http.StatusNotFound, result.Error)
+		return
 	}
 
-	r := model.Message{Message: "Todo not found"}
-	ctx.JSON(http.StatusNotFound, r)
-}
+	h.DB.Delete(&todo)
 
-func convertRequest(id int, todoRequest model.TodoRequest) model.Todo {
-	var todo model.Todo
-	todo.Id = maxId
-	todo.Name = todoRequest.Name
-	todo.Deadline = todoRequest.Deadline
-	todo.Description = todoRequest.Description
-	todo.Status = todoRequest.Status
-
-	return todo
+	ctx.Status(http.StatusOK)
 }
